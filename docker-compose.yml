@@ -1,0 +1,57 @@
+version: '3'
+
+services:
+  reverse-proxy:
+    image: nginx:1.7
+    container_name: reverse_proxy
+    depends_on:
+        - profile_site
+        - blog
+    volumes:
+      - ./reverse_proxy/nginx.conf:/etc/nginx/nginx.conf
+      - ./ssl/example.com/:/ssl/private/example.com/
+    ports:
+      - "80:80"
+      - "443:443"
+  
+  profile_site:
+    image: nginx:1.7
+    container_name: profile_site
+    volumes:
+      - ./profile_site/nginx.conf:/etc/nginx/nginx.conf
+      - ./profile_site/site/:/var/www/http/profile_site
+    ports:
+      - "8003:80"
+      - "8004:443"
+  
+  db:
+     image: mysql:5.7
+     container_name: db
+     volumes:
+       - ./blog/db_data:/var/www/data/
+     command: --default-authentication-plugin=mysql_native_password --innodb-flush-method=O_DSYNC
+     environment:
+       MYSQL_ROOT_PASSWORD: db_password
+       MYSQL_DATABASE: blog
+
+  blog:
+     depends_on:
+       - db
+     container_name: blog
+     image: wordpress:latest
+     links:
+      - db:mysql
+     volumes:
+       - ./blog/wordpress_data:/var/www/html
+       - ./blog/apache_data/000-default.conf:/etc/apache2/sites-available/000-default.conf
+       - ./blog/apache_data/apache2.conf:/etc/apache2/apache2.conf
+       - ./blog/apache_data/ports.conf:/etc/apache2/ports.conf
+       - ./ssl/example.com/:/ssl/example.com/
+     ports:
+       - "8001:80"
+       - "8002:443"
+     environment:
+       WORDPRESS_DB_USER: root
+       WORDPRESS_DB_PASSWORD: db_password
+       WORDPRESS_DB_NAME: blog
+
